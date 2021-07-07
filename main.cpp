@@ -4,12 +4,12 @@
 #include <string>
 #include <vector>
 
-// #include "test_search_server.h"
+#include "test_search_server.h"
 
 using namespace std;
 
 int main() {
-    // TestSearchServer();
+    TestSearchServer();
 
     SearchServer search_server("and with"s);
 
