@@ -21,10 +21,12 @@ public:
     template <typename StringCollection>
     explicit SearchServer(const StringCollection& stop_words);
     
+    explicit SearchServer(const std::string_view stop_words);
+
     explicit SearchServer(const std::string& stop_words);
     
 public:
-    void SetStopWords(const std::string& text);
+    void SetStopWords(const std::string_view text);
     
     bool AddDocument(int document_id, const std::string& document,
                      DocumentStatus status, const std::vector<int>& ratings);
@@ -103,8 +105,8 @@ private:
     double ComputeWordInverseDocumentFrequency(const std::string& word) const;
     
     std::vector<Document> FindAllDocuments(const Query& query) const;
-    
-    static bool IsValidWord(const std::string& word);
+
+    bool IsValidWord(const std::string_view word) const;
     
 private:
     std::set<std::string> stop_words_;
@@ -233,7 +235,7 @@ SearchServer::SearchServer(const StringCollection& stop_words) {
             throw std::invalid_argument("stop word contains unaccaptable symbol"s);
         }
         
-        stop_words_.insert(stop_word);
+        stop_words_.emplace(stop_word);
     }
 }
 
@@ -267,7 +269,7 @@ std::vector<Document> SearchServer::FindTopDocuments(const std::string& raw_quer
     }
     
     return filtered_documents;
-} // FindTopDocuments
+} // FindTopDocuments 
 
 namespace search_server_helpers {
 
