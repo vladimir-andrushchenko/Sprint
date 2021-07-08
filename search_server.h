@@ -28,7 +28,7 @@ public:
 public:
     void SetStopWords(const std::string_view text);
     
-    bool AddDocument(int document_id, const std::string& document,
+    bool AddDocument(int document_id, const std::string_view document,
                      DocumentStatus status, const std::vector<int>& ratings);
     
     int GetDocumentCount() const;

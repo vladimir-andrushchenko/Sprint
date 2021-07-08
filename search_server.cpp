@@ -63,7 +63,7 @@ void SearchServer::SetStopWords(const std::string_view text) {
     }
 } // SetStopWords
 
-bool SearchServer::AddDocument(int document_id, const std::string& document,
+bool SearchServer::AddDocument(int document_id, const std::string_view document,
                                DocumentStatus status, const std::vector<int>& ratings) {
     if (document_id < 0) {
         throw std::invalid_argument("negative ids are not allowed"s);
@@ -77,7 +77,7 @@ bool SearchServer::AddDocument(int document_id, const std::string& document,
         throw std::invalid_argument("word in document contains unaccaptable symbol"s);
     }
     
-    const std::vector<std::string> words = SplitIntoWordsNoStop(document);
+    const std::vector<std::string> words = SplitIntoWordsNoStop(static_cast<std::string>(document));
     
     const double inverse_word_count = 1.0 / static_cast<double>(words.size());
     
