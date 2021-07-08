@@ -121,7 +121,7 @@ private:
 template<typename ExecutionPolicy>
 SearchServer::Query SearchServer::ParseQuery(const ExecutionPolicy& policy, const std::string& text) const {
     // this is a temporary workaround and should be removed
-    if (text.find("--") != text.npos || !IsValidWord(text) || text.find("- ") != text.npos) {
+    if (text.find("--") != text.npos || !IsValidWord(text)) {
         throw std::invalid_argument("omg\n");
     }
 
