@@ -7,9 +7,12 @@
 #include <map>
 #include <algorithm>
 #include <execution>
+#include <list>
 
 #include "document.h"
 #include "string_processing.h"
+
+using namespace std::literals;
 
 class SearchServer {
 public:
@@ -105,6 +108,8 @@ private:
     
 private:
     std::set<std::string> stop_words_;
+
+    std::list<std::string> words_storage_;
     
     std::map<std::string, std::map<int, double>> word_to_document_id_to_term_frequency_;
     
@@ -115,7 +120,17 @@ private:
 
 template<typename ExecutionPolicy>
 SearchServer::Query SearchServer::ParseQuery(const ExecutionPolicy& policy, const std::string& text) const {
+    // this is a temporary workaround and should be removed
+    if (text.find("--") != text.npos || !IsValidWord(text) || text.find("- ") != text.npos) {
+        throw std::invalid_argument("omg\n");
+    }
+
     auto words = string_processing::SplitIntoWords(text);
+
+    // this is a temporary workaround and should be removed
+    if (std::find(words.begin(), words.end(), "-"s) != words.end()) {
+        throw std::invalid_argument("omg2\n");
+    }
 
     // UnaryOp
     const auto transform_word_in_query = [this](const std::string& word){
