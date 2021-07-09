@@ -124,16 +124,16 @@ private:
 template<typename ExecutionPolicy>
 SearchServer::Query SearchServer::ParseQuery(const ExecutionPolicy& policy, const std::string& text) const {
     // this is a temporary workaround and should be removed
-    if (text.find("--") != text.npos || !IsValidWord(text)) {
-        throw std::invalid_argument("omg\n");
-    }
+    // if (text.find("--") != text.npos || !IsValidWord(text)) {
+    //     throw std::invalid_argument("additional check in ParseQuery outside of ParseQueryWord. Check for special symbold and double minus\n");
+    // }
 
     auto words = string_processing::SplitIntoWords(text);
 
     // this is a temporary workaround and should be removed
-    if (std::find(words.begin(), words.end(), "-"s) != words.end()) {
-        throw std::invalid_argument("omg2\n");
-    }
+    // if (std::find(words.begin(), words.end(), "-"s) != words.end()) {
+    //     throw std::invalid_argument("additional check in ParseQuery outside of ParseQueryWord. Check for empty minus word\n");
+    // }
 
     // UnaryOp
     const auto transform_word_in_query = [this](const std::string& word){

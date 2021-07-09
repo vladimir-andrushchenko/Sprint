@@ -89,6 +89,7 @@ bool SearchServer::AddDocument(int document_id, const std::string_view document,
     std::map<std::string_view, double> word_frequencies;
     
     for (const std::string_view word : words) {
+        // i have all the words that i encountered in search server
         const auto iterator_to_word_view_in_storage = words_storage_.Find(word);
 
         if (iterator_to_word_view_in_storage == words_storage_.end()) {
