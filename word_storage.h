@@ -1,3 +1,5 @@
+#pragma once
+
 #include <list>
 #include <set>
 #include <string>
@@ -6,6 +8,7 @@
 
 // provides string_views that don't get invalidated
 class WordStorage {
+public:
     void Insert(std::string word) {
         if (string_views_.count(word) == 0) {
             data_.push_back(std::move(word));

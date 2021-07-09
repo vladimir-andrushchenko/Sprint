@@ -9,6 +9,7 @@
 #include <execution>
 #include <list>
 
+#include "word_storage.h"
 #include "document.h"
 #include "string_processing.h"
 
@@ -48,7 +49,7 @@ public:
     
     std::set<int>::const_iterator end() const;
     
-    const std::map<std::string, double>& GetWordFrequencies(int document_id) const;
+    const std::map<std::string_view, double>& GetWordFrequencies(int document_id) const;
     
     void RemoveDocument(const int document_id);
 
@@ -59,7 +60,7 @@ private:
     struct DocumentData {
         int rating = 0;
         DocumentStatus status = DocumentStatus::ACTUAL;
-        std::map<std::string, double> word_frequencies;
+        std::map<std::string_view, double> word_frequencies;
     };
     
     struct Query {
@@ -90,7 +91,7 @@ private:
     static constexpr double kAccuracy = 1e-6;
     
 private:
-    std::vector<std::string> SplitIntoWordsNoStop(const std::string& text) const;
+    std::vector<std::string_view> SplitIntoWordsNoStop(const std::string_view text) const;
     
     static int ComputeAverageRating(const std::vector<int>& ratings);
     
@@ -111,9 +112,9 @@ private:
 private:
     std::set<std::string> stop_words_;
 
-    std::list<std::string> words_storage_;
+    WordStorage words_storage_;
     
-    std::map<std::string, std::map<int, double>> word_to_document_id_to_term_frequency_;
+    std::map<std::string_view, std::map<int, double>> word_to_document_id_to_term_frequency_;
     
     std::map<int, DocumentData> document_id_to_document_data_;
     

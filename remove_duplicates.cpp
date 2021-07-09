@@ -20,7 +20,7 @@ void RemoveDuplicates(SearchServer& search_server) {
         std::set<std::string> words_in_document;
         
         for (const auto& [word, term_frequency] : words_to_term_frequencies) {
-            words_in_document.insert(word);
+            words_in_document.emplace(word);
         }
         
         if (!unique_documents.insert(words_in_document).second) {

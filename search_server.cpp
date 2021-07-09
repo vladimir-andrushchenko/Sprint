@@ -20,8 +20,8 @@ std::set<int>::const_iterator SearchServer::end() const {
     return document_ids_.end();
 }
 
-const std::map<std::string, double>& SearchServer::GetWordFrequencies(int document_id) const {
-    const static std::map<std::string, double> empty_map;
+const std::map<std::string_view, double>& SearchServer::GetWordFrequencies(int document_id) const {
+    const static std::map<std::string_view, double> empty_map;
     
     if (document_id_to_document_data_.count(document_id) > 0) {
         return document_id_to_document_data_.at(document_id).word_frequencies;
@@ -77,15 +77,27 @@ bool SearchServer::AddDocument(int document_id, const std::string_view document,
         throw std::invalid_argument("word in document contains unaccaptable symbol"s);
     }
     
-    const std::vector<std::string> words = SplitIntoWordsNoStop(static_cast<std::string>(document));
+    const std::vector<std::string_view> words = SplitIntoWordsNoStop(document);
+
+    // save words to the server
+    for (const auto word : words) {
+        words_storage_.Insert(word);
+    }
     
     const double inverse_word_count = 1.0 / static_cast<double>(words.size());
     
-    std::map<std::string, double> word_frequencies;
+    std::map<std::string_view, double> word_frequencies;
     
-    for (const std::string& word : words) {
-        word_to_document_id_to_term_frequency_[word][document_id] += inverse_word_count;
-        word_frequencies[word] += inverse_word_count;
+    for (const std::string_view word : words) {
+        const auto iterator_to_word_view_in_storage = words_storage_.Find(word);
+
+        if (iterator_to_word_view_in_storage == words_storage_.end()) {
+            assert(false);
+        }
+
+        // use string views that store data in words_storage_
+        word_to_document_id_to_term_frequency_[*iterator_to_word_view_in_storage][document_id] += inverse_word_count;
+        word_frequencies[*iterator_to_word_view_in_storage] += inverse_word_count;
     }
     
     document_ids_.insert(document_id);
@@ -112,10 +124,10 @@ std::tuple<std::vector<std::string>, DocumentStatus> SearchServer::MatchDocument
    return MatchDocument(std::execution::seq, raw_query, document_id);
 }
 
-std::vector<std::string> SearchServer::SplitIntoWordsNoStop(const std::string& text) const {
-    std::vector<std::string> words;
-    for (const std::string& word : string_processing::SplitIntoWords(text)) {
-        if (!IsStopWord(word)) {
+std::vector<std::string_view> SearchServer::SplitIntoWordsNoStop(const std::string_view text) const {
+    std::vector<std::string_view> words;
+    for (const std::string_view word : string_processing::SplitIntoWords(text)) {
+        if (!IsStopWord(static_cast<std::string>(word))) {
             words.push_back(word);
         }
     }

@@ -41,7 +41,7 @@ void TestGetWordFrequencies() {
         
         const auto word_frequencies_of_not_existing_document = search_server.GetWordFrequencies(42);
         
-        std::map<std::string, double> empty_map;
+        std::map<std::string_view, double> empty_map;
         
         assert(empty_map == word_frequencies_of_not_existing_document);
     }
@@ -338,9 +338,9 @@ void TestRelevanceCalculation() {
     
     SearchServer server;
     
-    server.AddDocument(0, "cat cat city dog"s, DocumentStatus::ACTUAL, {1});
-    server.AddDocument(1, "city dog"s, DocumentStatus::ACTUAL, {1});
-    server.AddDocument(2, "cat city potato"s, DocumentStatus::ACTUAL, {1});
+    server.AddDocument(0, "cat cat city dog"sv, DocumentStatus::ACTUAL, {1});
+    server.AddDocument(1, "city dog"sv, DocumentStatus::ACTUAL, {1});
+    server.AddDocument(2, "cat city potato"sv, DocumentStatus::ACTUAL, {1});
     
     // positive case
     {
