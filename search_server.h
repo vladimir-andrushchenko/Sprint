@@ -15,6 +15,8 @@
 
 using namespace std::literals;
 
+static std::exception_ptr exception_pointer_in_parse_query_word = nullptr;
+
 class SearchServer {
 public:
     SearchServer() = default;
@@ -137,7 +139,7 @@ SearchServer::Query SearchServer::ParseQuery(const ExecutionPolicy& policy, cons
 
     // UnaryOp
     const auto transform_word_in_query = [this](const std::string& word){
-        auto query_word = this->ParseQueryWord(word);
+        auto query_word = this->ParseQueryWord(word); // add std::move
 
         Query query;
         if (!query_word.is_stop) {
@@ -162,6 +164,12 @@ SearchServer::Query SearchServer::ParseQuery(const ExecutionPolicy& policy, cons
 template<typename ExecutionPolicy>
 std::tuple<std::vector<std::string>, DocumentStatus> SearchServer::MatchDocument(const ExecutionPolicy& policy, const std::string& raw_query, int document_id) const {
     const Query query = ParseQuery(policy, raw_query);
+
+    if (exception_pointer_in_parse_query_word) {
+        auto temp_exception_holder = exception_pointer_in_parse_query_word;
+        exception_pointer_in_parse_query_word = nullptr;
+        std::rethrow_exception(temp_exception_holder);
+    }
     
     std::vector<std::string> matched_words;
     for (const std::string& word : query.plus_words) {
@@ -243,6 +251,12 @@ SearchServer::SearchServer(const StringCollection& stop_words) {
 template<typename Predicate>
 std::vector<Document> SearchServer::FindTopDocuments(const std::string& raw_query, Predicate predicate) const {
     const Query query = ParseQuery(std::execution::seq, raw_query);
+
+    if (exception_pointer_in_parse_query_word) {
+        auto temp_exception_holder = exception_pointer_in_parse_query_word;
+        exception_pointer_in_parse_query_word = nullptr;
+        std::rethrow_exception(temp_exception_holder);
+    }
     
     std::vector<Document> matched_documents = FindAllDocuments(query);
     

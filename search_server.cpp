@@ -151,28 +151,37 @@ bool SearchServer::IsStopWord(const std::string& word) const {
 } // IsStopWord
 
 SearchServer::QueryWord SearchServer::ParseQueryWord(std::string text) const {
-    if (text.empty()) {
-        throw std::invalid_argument("caught empty word, check for double spaces"s);
-    }
-    
+    try {
+        if (text.empty()) {
+            throw std::invalid_argument("caught empty word, check for double spaces"s);
+        }
+    } catch(...) {
+        exception_pointer_in_parse_query_word = std::current_exception();
+    }    
+
+
     bool is_minus = false;
     
-    if (text[0] == '-') {
-        text = text.substr(1);
-        
-        if (text.empty()) {
-            throw std::invalid_argument("empty minus words are not allowed"s);
-        }
-        
+    try {
         if (text[0] == '-') {
-            throw std::invalid_argument("double minus words are not allowed"s);
+            text = text.substr(1);
+            
+            if (text.empty()) {
+                throw std::invalid_argument("empty minus words are not allowed"s);
+            }
+            
+            if (text[0] == '-') {
+                throw std::invalid_argument("double minus words are not allowed"s);
+            }
+            
+            is_minus = true;
         }
         
-        is_minus = true;
-    }
-    
-    if (!IsValidWord(text)) {
-        throw std::invalid_argument("special symbols in words are not allowed"s);
+        if (!IsValidWord(text)) {
+            throw std::invalid_argument("special symbols in words are not allowed"s);
+        }
+    } catch(...) {
+        exception_pointer_in_parse_query_word = std::current_exception();
     }
     
     return {text, is_minus, IsStopWord(text)};
