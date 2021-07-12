@@ -301,7 +301,7 @@ std::vector<Document> SearchServer::FindTopDocuments(const std::string_view raw_
         }
     }
     
-    std::sort(filtered_documents.begin(), filtered_documents.end(),
+    std::sort(std::execution::par, filtered_documents.begin(), filtered_documents.end(),
               [](const Document& left, const Document& right) {
         if (std::abs(left.relevance - right.relevance) < kAccuracy) {
             return left.rating > right.rating;

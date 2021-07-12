@@ -212,18 +212,6 @@ std::vector<Document> SearchServer::FindAllDocuments(const Query& query) const {
         } 
     });
 
-    // for (const std::string_view word : query.plus_words) {
-    //     if (word_to_document_id_to_term_frequency_.count(word) == 0) {
-    //         continue;
-    //     }
-        
-    //     const double inverse_document_frequency = ComputeWordInverseDocumentFrequency(word);
-        
-    //     for (const auto &[document_id, term_frequency] : word_to_document_id_to_term_frequency_.at(word)) {
-    //         document_id_to_relevance[document_id] += term_frequency * inverse_document_frequency;
-    //     }
-    // }
-
     std::map<int, double> document_id_to_relevance = document_id_to_relevance_concurrent.BuildOrdinaryMap();
     
     for (const std::string_view word : query.minus_words) {
