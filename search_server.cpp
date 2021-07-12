@@ -7,6 +7,7 @@
 
 #include "search_server.h"
 #include "string_processing.h"
+#include "concurrent_map.h"
 
 #include "log_duration.h"
 
@@ -196,19 +197,34 @@ double SearchServer::ComputeWordInverseDocumentFrequency(const std::string_view 
 } // ComputeWordInverseDocumentFrequency
 
 std::vector<Document> SearchServer::FindAllDocuments(const Query& query) const {
-    std::map<int, double> document_id_to_relevance;
-    
-    for (const std::string_view word : query.plus_words) {
+    static constexpr int kNumberOfThreads = 4;
+    ConcurrentMap<int, double> document_id_to_relevance_concurrent(kNumberOfThreads);
+
+    std::for_each(std::execution::par, query.plus_words.begin(), query.plus_words.end(),[&](std::string_view word) {
         if (word_to_document_id_to_term_frequency_.count(word) == 0) {
-            continue;
+            return;
         }
-        
+
         const double inverse_document_frequency = ComputeWordInverseDocumentFrequency(word);
-        
+
         for (const auto &[document_id, term_frequency] : word_to_document_id_to_term_frequency_.at(word)) {
-            document_id_to_relevance[document_id] += term_frequency * inverse_document_frequency;
-        }
-    }
+            document_id_to_relevance_concurrent[document_id].ref_to_value += term_frequency * inverse_document_frequency;
+        } 
+    });
+
+    // for (const std::string_view word : query.plus_words) {
+    //     if (word_to_document_id_to_term_frequency_.count(word) == 0) {
+    //         continue;
+    //     }
+        
+    //     const double inverse_document_frequency = ComputeWordInverseDocumentFrequency(word);
+        
+    //     for (const auto &[document_id, term_frequency] : word_to_document_id_to_term_frequency_.at(word)) {
+    //         document_id_to_relevance[document_id] += term_frequency * inverse_document_frequency;
+    //     }
+    // }
+
+    std::map<int, double> document_id_to_relevance = document_id_to_relevance_concurrent.BuildOrdinaryMap();
     
     for (const std::string_view word : query.minus_words) {
         if (word_to_document_id_to_term_frequency_.count(word) == 0) {

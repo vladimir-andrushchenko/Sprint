@@ -72,6 +72,9 @@ public:
     
     std::vector<Document> FindTopDocuments(const std::string_view raw_query,
                                            const DocumentStatus& desired_status = DocumentStatus::ACTUAL) const;
+
+    template<typename Execution, typename Predicate>
+    std::vector<Document> FindTopDocuments(Execution policy, const std::string_view raw_query, Predicate predicate) const;
     
     std::tuple<std::vector<std::string_view>, DocumentStatus> MatchDocument(const std::string_view raw_query, const int document_id) const;
 
@@ -268,6 +271,11 @@ SearchServer::SearchServer(const StringCollection& stop_words) {
         
         stop_words_.emplace(stop_word);
     }
+}
+
+template<typename Execution, typename Predicate>
+std::vector<Document> SearchServer::FindTopDocuments(Execution policy, const std::string_view raw_query, Predicate predicate) const {
+    return FindTopDocuments(raw_query, predicate);
 }
 
 template<typename Predicate>
