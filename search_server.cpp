@@ -116,7 +116,7 @@ std::vector<Document> SearchServer::FindTopDocuments(const std::string_view raw_
         return document_status == desired_status;
     };
     
-    return FindTopDocuments(raw_query, predicate);
+    return FindTopDocuments(std::execution::seq, raw_query, predicate);
 } // FindTopDocuments with status as a second argument
 
 std::tuple<std::vector<std::string_view>, DocumentStatus> SearchServer::MatchDocument(const std::string_view raw_query, int document_id) const {
