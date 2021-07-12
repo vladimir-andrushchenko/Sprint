@@ -89,14 +89,11 @@ bool SearchServer::AddDocument(int document_id, const std::string_view document,
     std::map<std::string_view, double> word_frequencies;
     
     for (const std::string_view word : words) {
-        // i have all the words that i encountered in search server
+        // WordStorage has all the words that have been added to the search_server 
         const auto iterator_to_word_view_in_storage = words_storage_.Find(word);
+        assert(iterator_to_word_view_in_storage != words_storage_.end());
 
-        if (iterator_to_word_view_in_storage == words_storage_.end()) {
-            assert(false);
-        }
-
-        // use string views that store data in words_storage_
+        // use string views that store data in words_storage_ as keys
         word_to_document_id_to_term_frequency_[*iterator_to_word_view_in_storage][document_id] += inverse_word_count;
         word_frequencies[*iterator_to_word_view_in_storage] += inverse_word_count;
     }
@@ -105,14 +102,14 @@ bool SearchServer::AddDocument(int document_id, const std::string_view document,
     
     document_id_to_document_data_.emplace(document_id, DocumentData{ComputeAverageRating(ratings), status, word_frequencies});
     
-    return true;
+    return true; // this return is kind of redundant
 } // AddDocument
 
 int SearchServer::GetDocumentCount() const {
     return static_cast<int>(document_id_to_document_data_.size());
 } // GetDocumentCount
 
-std::vector<Document> SearchServer::FindTopDocuments(const std::string& raw_query,
+std::vector<Document> SearchServer::FindTopDocuments(const std::string_view raw_query,
                                                      const DocumentStatus& desired_status) const {
     const auto predicate = [desired_status](int , DocumentStatus document_status, int ) {
         return document_status == desired_status;
@@ -121,14 +118,14 @@ std::vector<Document> SearchServer::FindTopDocuments(const std::string& raw_quer
     return FindTopDocuments(raw_query, predicate);
 } // FindTopDocuments with status as a second argument
 
-std::tuple<std::vector<std::string>, DocumentStatus> SearchServer::MatchDocument(const std::string& raw_query, int document_id) const {
+std::tuple<std::vector<std::string_view>, DocumentStatus> SearchServer::MatchDocument(const std::string_view raw_query, int document_id) const {
    return MatchDocument(std::execution::seq, raw_query, document_id);
 }
 
 std::vector<std::string_view> SearchServer::SplitIntoWordsNoStop(const std::string_view text) const {
     std::vector<std::string_view> words;
     for (const std::string_view word : string_processing::SplitIntoWords(text)) {
-        if (!IsStopWord(static_cast<std::string>(word))) {
+        if (!IsStopWord(word)) {
             words.push_back(word);
         }
     }
@@ -146,11 +143,11 @@ int SearchServer::ComputeAverageRating(const std::vector<int>& ratings) {
     return rating_sum / static_cast<int>(ratings.size());
 } // ComputeAverageRating
 
-bool SearchServer::IsStopWord(const std::string& word) const {
+bool SearchServer::IsStopWord(const std::string_view word) const {
     return stop_words_.count(word) > 0;
 } // IsStopWord
 
-SearchServer::QueryWord SearchServer::ParseQueryWord(std::string text) const {
+SearchServer::QueryWord SearchServer::ParseQueryWord(std::string_view text) const {
     try {
         if (text.empty()) {
             throw std::invalid_argument("caught empty word, check for double spaces"s);
@@ -188,7 +185,7 @@ SearchServer::QueryWord SearchServer::ParseQueryWord(std::string text) const {
 } // ParseQueryWord
 
 // Existence required
-double SearchServer::ComputeWordInverseDocumentFrequency(const std::string& word) const {
+double SearchServer::ComputeWordInverseDocumentFrequency(const std::string_view word) const {
     assert(word_to_document_id_to_term_frequency_.count(word) != 0);
     
     const size_t number_of_documents_constains_word = word_to_document_id_to_term_frequency_.at(word).size();
@@ -201,7 +198,7 @@ double SearchServer::ComputeWordInverseDocumentFrequency(const std::string& word
 std::vector<Document> SearchServer::FindAllDocuments(const Query& query) const {
     std::map<int, double> document_id_to_relevance;
     
-    for (const std::string& word : query.plus_words) {
+    for (const std::string_view word : query.plus_words) {
         if (word_to_document_id_to_term_frequency_.count(word) == 0) {
             continue;
         }
@@ -213,7 +210,7 @@ std::vector<Document> SearchServer::FindAllDocuments(const Query& query) const {
         }
     }
     
-    for (const std::string& word : query.minus_words) {
+    for (const std::string_view word : query.minus_words) {
         if (word_to_document_id_to_term_frequency_.count(word) == 0) {
             continue;
         }
@@ -234,18 +231,18 @@ std::vector<Document> SearchServer::FindAllDocuments(const Query& query) const {
 
 namespace search_server_helpers {
 
-void PrintMatchDocumentResult(int document_id, const std::vector<std::string>& words, DocumentStatus status) {
+void PrintMatchDocumentResult(int document_id, const std::vector<std::string_view> words, DocumentStatus status) {
     std::cout << "{ "s
     << "document_id = "s << document_id << ", "s
     << "status = "s << static_cast<int>(status) << ", "s
     << "words ="s;
-    for (const std::string& word : words) {
+    for (const std::string_view word : words) {
         std::cout << ' ' << word;
     }
     std::cout << "}"s << std::endl;
 }
 
-void AddDocument(SearchServer& search_server, int document_id, const std::string& document, DocumentStatus status,
+void AddDocument(SearchServer& search_server, int document_id, const std::string_view document, DocumentStatus status,
                  const std::vector<int>& ratings) {
     try {
         search_server.AddDocument(document_id, document, status, ratings);
@@ -254,7 +251,7 @@ void AddDocument(SearchServer& search_server, int document_id, const std::string
     }
 }
 
-void FindTopDocuments(const SearchServer& search_server, const std::string& raw_query) {
+void FindTopDocuments(const SearchServer& search_server, const std::string_view raw_query) {
     LOG_DURATION("Operation time");
     
     std::cout << "Результаты поиска по запросу: "s << raw_query << std::endl;
@@ -271,7 +268,7 @@ void FindTopDocuments(const SearchServer& search_server, const std::string& raw_
     }
 }
 
-void MatchDocuments(const SearchServer& search_server, const std::string& query) {
+void MatchDocuments(const SearchServer& search_server, const std::string_view query) {
     LOG_DURATION_STREAM("Operation time", std::cout);
     
     try {
@@ -288,7 +285,7 @@ void MatchDocuments(const SearchServer& search_server, const std::string& query)
     }
 }
 
-SearchServer CreateSearchServer(const std::string& stop_words) {
+SearchServer CreateSearchServer(const std::string_view stop_words) {
     SearchServer search_server;
     
     try {

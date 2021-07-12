@@ -162,9 +162,9 @@ void TestMatchDocumentResults() {
         
         server.AddDocument(42, "cat in the city"s, DocumentStatus::ACTUAL, ratings);
         
-        const auto [words, status] = server.MatchDocument("fat cat out of city"s, 42);
+        const auto [words, status] = server.MatchDocument("fat cat out of city"sv, 42);
         
-        std::vector<std::string> desired_matched_words{"cat"s, "city"s};
+        std::vector<std::string_view> desired_matched_words{"cat"s, "city"s};
         
         ASSERT_EQUAL(words, desired_matched_words);
         ASSERT_EQUAL(status, DocumentStatus::ACTUAL);
@@ -179,7 +179,7 @@ void TestMatchDocumentResults() {
         
         const auto [words, status] = server.MatchDocument("fat cat out of city and a cute dog"s, 43);
         
-        std::vector<std::string> desired_matched_words{"dog"s};
+        std::vector<std::string_view> desired_matched_words{"dog"s};
         
         ASSERT_EQUAL(words, desired_matched_words);
         ASSERT_EQUAL(status, DocumentStatus::BANNED);

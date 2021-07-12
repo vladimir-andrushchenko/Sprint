@@ -8,12 +8,43 @@
 #include <algorithm>
 #include <execution>
 #include <list>
+#include <functional>
 
-#include "word_storage.h"
+// #include "word_storage.h"
 #include "document.h"
 #include "string_processing.h"
 
 using namespace std::literals;
+
+// provides string_views that don't get invalidated
+class WordStorage {
+public:
+    void Insert(std::string word) {
+        if (string_views_.count(word) == 0) {
+            data_.push_back(std::move(word));
+            string_views_.insert(data_.back());
+        }
+    }
+
+    void Insert(std::string_view word) {
+        if (string_views_.count(word) == 0) {
+            data_.emplace_back(word);
+            string_views_.insert(data_.back());
+        }
+    }
+
+    std::set<std::string_view>::const_iterator Find(std::string_view word) {
+        return string_views_.find(word);
+    }
+
+    auto end() {
+        return string_views_.end();
+    }
+
+private:
+    std::set<std::string_view> string_views_;
+    std::list<std::string> data_;
+};
 
 static std::exception_ptr exception_pointer_in_parse_query_word = nullptr;
 
@@ -37,15 +68,15 @@ public:
     int GetDocumentCount() const;
     
     template<typename Predicate>
-    std::vector<Document> FindTopDocuments(const std::string& raw_query, Predicate predicate) const;
+    std::vector<Document> FindTopDocuments(const std::string_view raw_query, Predicate predicate) const;
     
-    std::vector<Document> FindTopDocuments(const std::string& raw_query,
+    std::vector<Document> FindTopDocuments(const std::string_view raw_query,
                                            const DocumentStatus& desired_status = DocumentStatus::ACTUAL) const;
     
-    std::tuple<std::vector<std::string>, DocumentStatus> MatchDocument(const std::string& raw_query, const int document_id) const;
+    std::tuple<std::vector<std::string_view>, DocumentStatus> MatchDocument(const std::string_view raw_query, const int document_id) const;
 
     template<typename ExecutionPolicy>
-    std::tuple<std::vector<std::string>, DocumentStatus> MatchDocument(const ExecutionPolicy& policy, const std::string& raw_query, const int document_id) const;
+    std::tuple<std::vector<std::string_view>, DocumentStatus> MatchDocument(const ExecutionPolicy& policy, const std::string_view raw_query, const int document_id) const;
     
     std::set<int>::const_iterator begin() const;
     
@@ -66,16 +97,16 @@ private:
     };
     
     struct Query {
-        std::set<std::string> plus_words;
-        std::set<std::string> minus_words;
+        std::set<std::string_view> plus_words;
+        std::set<std::string_view> minus_words;
 
-        Query& operator+=(Query&& other) {
+        Query& operator+=(Query other) {
             for (const auto& other_plus_word : other.plus_words) {
-                plus_words.insert(std::move(other_plus_word));
+                plus_words.insert(other_plus_word);
             }
 
             for (const auto& other_minus_word : other.minus_words) {
-                minus_words.insert(std::move(other_minus_word));
+                minus_words.insert(other_minus_word);
             }
 
             return *this;
@@ -83,7 +114,7 @@ private:
     };
     
     struct QueryWord {
-        std::string data;
+        std::string_view data;
         bool is_minus = false;
         bool is_stop = false;
     };
@@ -97,22 +128,22 @@ private:
     
     static int ComputeAverageRating(const std::vector<int>& ratings);
     
-    bool IsStopWord(const std::string& word) const;
+    bool IsStopWord(const std::string_view word) const;
     
-    QueryWord ParseQueryWord(std::string text) const;
+    QueryWord ParseQueryWord(std::string_view text) const;
 
     template<typename ExecutionPolicy>
-    Query ParseQuery(const ExecutionPolicy& p, const std::string& text) const;
+    Query ParseQuery(const ExecutionPolicy& p, const std::string_view text) const;
     
     // Existence required
-    double ComputeWordInverseDocumentFrequency(const std::string& word) const;
+    double ComputeWordInverseDocumentFrequency(const std::string_view word) const;
     
     std::vector<Document> FindAllDocuments(const Query& query) const;
 
     bool IsValidWord(const std::string_view word) const;
     
 private:
-    std::set<std::string> stop_words_;
+    std::set<std::string, std::less<>> stop_words_;
 
     WordStorage words_storage_;
     
@@ -124,22 +155,12 @@ private:
 };
 
 template<typename ExecutionPolicy>
-SearchServer::Query SearchServer::ParseQuery(const ExecutionPolicy& policy, const std::string& text) const {
-    // this is a temporary workaround and should be removed
-    // if (text.find("--") != text.npos || !IsValidWord(text)) {
-    //     throw std::invalid_argument("additional check in ParseQuery outside of ParseQueryWord. Check for special symbold and double minus\n");
-    // }
-
+SearchServer::Query SearchServer::ParseQuery(const ExecutionPolicy& policy, const std::string_view text) const {
     auto words = string_processing::SplitIntoWords(text);
 
-    // this is a temporary workaround and should be removed
-    // if (std::find(words.begin(), words.end(), "-"s) != words.end()) {
-    //     throw std::invalid_argument("additional check in ParseQuery outside of ParseQueryWord. Check for empty minus word\n");
-    // }
-
     // UnaryOp
-    const auto transform_word_in_query = [this](const std::string& word){
-        auto query_word = this->ParseQueryWord(word); // add std::move
+    const auto transform_word_in_query = [this](const std::string_view word){
+        auto query_word = this->ParseQueryWord(word); 
 
         Query query;
         if (!query_word.is_stop) {
@@ -155,24 +176,25 @@ SearchServer::Query SearchServer::ParseQuery(const ExecutionPolicy& policy, cons
 
     // BinaryOp
     const auto combine_queries = [](Query first, Query second){
-        return first += std::move(second);
+        return first += second;
     };
 
     return std::transform_reduce(policy, std::make_move_iterator(words.begin()), std::make_move_iterator(words.end()), Query{}, combine_queries, transform_word_in_query);
 } // ParseQuery
 
 template<typename ExecutionPolicy>
-std::tuple<std::vector<std::string>, DocumentStatus> SearchServer::MatchDocument(const ExecutionPolicy& policy, const std::string& raw_query, int document_id) const {
+std::tuple<std::vector<std::string_view>, DocumentStatus> SearchServer::MatchDocument(const ExecutionPolicy& policy, const std::string_view raw_query, int document_id) const {
     const Query query = ParseQuery(policy, raw_query);
 
+    // error handling
     if (exception_pointer_in_parse_query_word) {
         auto temp_exception_holder = exception_pointer_in_parse_query_word;
         exception_pointer_in_parse_query_word = nullptr;
         std::rethrow_exception(temp_exception_holder);
     }
     
-    std::vector<std::string> matched_words;
-    for (const std::string& word : query.plus_words) {
+    std::vector<std::string_view> matched_words;
+    for (const std::string_view word : query.plus_words) {
         if (word_to_document_id_to_term_frequency_.count(word) == 0) {
             continue;
         }
@@ -182,7 +204,7 @@ std::tuple<std::vector<std::string>, DocumentStatus> SearchServer::MatchDocument
         }
     }
     
-    for (const std::string& word : query.minus_words) {
+    for (const std::string_view word : query.minus_words) {
         if (word_to_document_id_to_term_frequency_.count(word) == 0) {
             continue;
         }
@@ -193,7 +215,7 @@ std::tuple<std::vector<std::string>, DocumentStatus> SearchServer::MatchDocument
         }
     }
     
-    return std::tuple<std::vector<std::string>, DocumentStatus>{matched_words, document_id_to_document_data_.at(document_id).status};
+    return std::tuple<std::vector<std::string_view>, DocumentStatus>{matched_words, document_id_to_document_data_.at(document_id).status};
 } // MatchDocument
 
 template<typename ExecutionPolicy>
@@ -249,9 +271,10 @@ SearchServer::SearchServer(const StringCollection& stop_words) {
 }
 
 template<typename Predicate>
-std::vector<Document> SearchServer::FindTopDocuments(const std::string& raw_query, Predicate predicate) const {
+std::vector<Document> SearchServer::FindTopDocuments(const std::string_view raw_query, Predicate predicate) const {
     const Query query = ParseQuery(std::execution::seq, raw_query);
 
+    // handle exception that could have occured while ParsingQuery
     if (exception_pointer_in_parse_query_word) {
         auto temp_exception_holder = exception_pointer_in_parse_query_word;
         exception_pointer_in_parse_query_word = nullptr;
@@ -288,16 +311,16 @@ std::vector<Document> SearchServer::FindTopDocuments(const std::string& raw_quer
 
 namespace search_server_helpers {
 
-void PrintMatchDocumentResult(int document_id, const std::vector<std::string>& words, DocumentStatus status);
+void PrintMatchDocumentResult(int document_id, const std::vector<std::string_view> words, DocumentStatus status);
 
-void AddDocument(SearchServer& search_server, int document_id, const std::string& document, DocumentStatus status,
+void AddDocument(SearchServer& search_server, int document_id, const std::string_view document, DocumentStatus status,
                  const std::vector<int>& ratings);
 
-void FindTopDocuments(const SearchServer& search_server, const std::string& raw_query);
+void FindTopDocuments(const SearchServer& search_server, const std::string_view raw_query);
 
-void MatchDocuments(const SearchServer& search_server, const std::string& query);
+void MatchDocuments(const SearchServer& search_server, const std::string_view query);
 
-SearchServer CreateSearchServer(const std::string& stop_words);
+SearchServer CreateSearchServer(const std::string_view stop_words);
 
 } // namespace search_server_helpers
 
