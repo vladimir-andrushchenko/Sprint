@@ -1,0 +1,29 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"type": "cppbuild",
+			"label": "C/C++: g++-11 run search server",
+			"command": "/usr/local/bin/g++-11",
+			"args": [
+				"-std=c++17",
+				"-g",
+				"main.cpp",
+				"document.cpp",
+				"search_server.cpp",
+				"string_processing.cpp",
+				"test_search_server.cpp",
+				"remove_duplicates.cpp",
+				"process_queries.cpp"
+			],
+			"options": {
+				"cwd": "~/Desktop/Sprint8"
+			},
+			"problemMatcher": [
+				"$gcc"
+			],
+			"group": "build",
+			"detail": "compiler: /usr/local/bin/g++-11"
+		}
+	]
+}
