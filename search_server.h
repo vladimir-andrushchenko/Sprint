@@ -9,6 +9,7 @@
 #include <execution>
 #include <list>
 #include <functional>
+#include <mutex>
 
 // #include "word_storage.h"
 #include "document.h"
@@ -45,6 +46,28 @@ private:
     std::set<std::string_view> string_views_;
     std::list<std::string> data_;
 };
+
+template <typename Container, typename Predicate>
+std::vector<typename Container::value_type> CopyIfUnordered(const Container& container, Predicate predicate) {
+    std::vector<typename Container::value_type> result;
+    result.reserve(container.size());
+    std::mutex result_mutex;
+    std::for_each(
+        std::execution::par,
+        container.begin(), container.end(),
+        [predicate, &result_mutex, &result](const auto& value) {
+            if (predicate(value)) {
+                typename Container::value_type* destination;
+                {
+                    std::lock_guard guard(result_mutex);
+                    destination = &result.emplace_back();
+                }
+                *destination = value;
+            }
+        }
+    );
+    return result;
+}
 
 static std::exception_ptr exception_pointer_in_parse_query_word = nullptr;
 
@@ -289,15 +312,25 @@ std::vector<Document> SearchServer::FindTopDocuments(Execution policy, const std
     
     std::vector<Document> matched_documents = FindAllDocuments(query);
     
-    std::vector<Document> filtered_documents;
-    for (const Document& document : matched_documents) {
+    std::vector<Document> filtered_documents = CopyIfUnordered(matched_documents, [&](Document document){
         const auto document_status = document_id_to_document_data_.at(document.id).status;
         const auto document_rating = document_id_to_document_data_.at(document.id).rating;
         
         if (predicate(document.id, document_status, document_rating)) {
-            filtered_documents.push_back(document);
+            return true;
         }
-    }
+        
+        return false;
+    });
+
+    // for (const Document& document : matched_documents) {
+    //     const auto document_status = document_id_to_document_data_.at(document.id).status;
+    //     const auto document_rating = document_id_to_document_data_.at(document.id).rating;
+        
+    //     if (predicate(document.id, document_status, document_rating)) {
+    //         filtered_documents.push_back(document);
+    //     }
+    // }
     
     std::sort(policy, filtered_documents.begin(), filtered_documents.end(),
               [](const Document& left, const Document& right) {
