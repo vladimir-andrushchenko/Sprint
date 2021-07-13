@@ -1,6 +1,7 @@
 #pragma once
 
 #include <iostream>
+#include <type_traits>
 #include <string>
 #include <vector>
 #include <set>
@@ -311,27 +312,32 @@ std::vector<Document> SearchServer::FindTopDocuments(Execution policy, const std
     }
     
     std::vector<Document> matched_documents = FindAllDocuments(query);
-    
-    std::vector<Document> filtered_documents = CopyIfUnordered(matched_documents, [&](Document document){
-        const auto document_status = document_id_to_document_data_.at(document.id).status;
-        const auto document_rating = document_id_to_document_data_.at(document.id).rating;
-        
-        if (predicate(document.id, document_status, document_rating)) {
-            return true;
-        }
-        
-        return false;
-    });
 
-    // for (const Document& document : matched_documents) {
-    //     const auto document_status = document_id_to_document_data_.at(document.id).status;
-    //     const auto document_rating = document_id_to_document_data_.at(document.id).rating;
-        
-    //     if (predicate(document.id, document_status, document_rating)) {
-    //         filtered_documents.push_back(document);
-    //     }
-    // }
-    
+    std::vector<Document> filtered_documents;
+
+    if (std::is_same_v<Execution, std::execution::sequenced_policy>) {
+        for (const Document& document : matched_documents) {
+            const auto document_status = document_id_to_document_data_.at(document.id).status;
+            const auto document_rating = document_id_to_document_data_.at(document.id).rating;
+            
+            if (predicate(document.id, document_status, document_rating)) {
+                filtered_documents.push_back(document);
+            }
+        }
+
+    } else {
+        filtered_documents = CopyIfUnordered(matched_documents, [&](Document document){
+            const auto document_status = document_id_to_document_data_.at(document.id).status;
+            const auto document_rating = document_id_to_document_data_.at(document.id).rating;
+            
+            if (predicate(document.id, document_status, document_rating)) {
+                return true;
+            }
+            
+            return false;
+        });
+    }
+
     std::sort(policy, filtered_documents.begin(), filtered_documents.end(),
               [](const Document& left, const Document& right) {
         if (std::abs(left.relevance - right.relevance) < kAccuracy) {
