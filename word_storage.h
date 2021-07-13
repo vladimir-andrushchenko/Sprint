@@ -6,7 +6,8 @@
 #include <string_view>
 #include <utility>
 
-// provides string_views that don't get invalidated
+namespace search_server_storage_container {
+
 class WordStorage {
 public:
     void Insert(std::string word) {
@@ -35,3 +36,5 @@ private:
     std::set<std::string_view> string_views_;
     std::list<std::string> data_;
 };
+
+}

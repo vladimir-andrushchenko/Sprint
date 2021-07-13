@@ -12,64 +12,13 @@
 #include <functional>
 #include <mutex>
 
-// #include "word_storage.h"
 #include "concurrent_map.h"
 #include "document.h"
 #include "string_processing.h"
+#include "word_storage.h"
+#include "copy_if_unordered.h"
 
 using namespace std::literals;
-
-// provides string_views that don't get invalidated
-class WordStorage {
-public:
-    void Insert(std::string word) {
-        if (string_views_.count(word) == 0) {
-            data_.push_back(std::move(word));
-            string_views_.insert(data_.back());
-        }
-    }
-
-    void Insert(std::string_view word) {
-        if (string_views_.count(word) == 0) {
-            data_.emplace_back(word);
-            string_views_.insert(data_.back());
-        }
-    }
-
-    std::set<std::string_view>::const_iterator Find(std::string_view word) {
-        return string_views_.find(word);
-    }
-
-    auto end() {
-        return string_views_.end();
-    }
-
-private:
-    std::set<std::string_view> string_views_;
-    std::list<std::string> data_;
-};
-
-template <typename Container, typename Predicate>
-std::vector<typename Container::value_type> CopyIfUnordered(const Container& container, Predicate predicate) {
-    std::vector<typename Container::value_type> result;
-    result.reserve(container.size());
-    std::mutex result_mutex;
-    std::for_each(
-        std::execution::par,
-        container.begin(), container.end(),
-        [predicate, &result_mutex, &result](const auto& value) {
-            if (predicate(value)) {
-                typename Container::value_type* destination;
-                {
-                    std::lock_guard guard(result_mutex);
-                    destination = &result.emplace_back();
-                }
-                *destination = value;
-            }
-        }
-    );
-    return result;
-}
 
 static std::exception_ptr exception_pointer_in_parse_query_word = nullptr;
 
@@ -177,7 +126,7 @@ private:
 private:
     std::set<std::string, std::less<>> stop_words_;
 
-    WordStorage words_storage_;
+    search_server_storage_container::WordStorage words_storage_;
     
     std::map<std::string_view, std::map<int, double>> word_to_document_id_to_term_frequency_;
     
@@ -328,7 +277,7 @@ std::vector<Document> SearchServer::FindTopDocuments(Execution policy, const std
         }
 
     } else {
-        filtered_documents = CopyIfUnordered(matched_documents, [&](Document document){
+        filtered_documents = parallel_copy::CopyIfUnordered(matched_documents, [&](Document document){
             const auto document_status = document_id_to_document_data_.at(document.id).status;
             const auto document_rating = document_id_to_document_data_.at(document.id).rating;
             
